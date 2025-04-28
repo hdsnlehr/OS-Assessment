@@ -1,145 +1,151 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <string.h>
-#include <unistd.h>
+#include <stdio.h>      //For input and output functions (printf, scanf, etc.)
+#include <stdlib.h>     //For memory allocation functions (malloc, free, etc.)
+#include <pthread.h>    //For using POSIX threads (pthread_create, pthread_join, etc.)
 
-#define MAX_SIZE 100
+#define MAX_SIZE 100    // Maximum size of the array A
 
-int A[MAX_SIZE];
-int size = 0;
-int totalSwaps = 0;
-int currentIteration = 0;
-pthread_mutex_t lock;
-pthread_cond_t cond;
-int turn = 1; // 1 for T1, 2 for T2
+// Global variables
+int A[MAX_SIZE];            //Array to hold the numbers read from the file
+int size = 0;               //Current size of the array A
+int totalSwaps = 0;         //Total number of swaps made during sorting
+int currentIteration = 0;   //Tracks the current iteration of sorting
+pthread_mutex_t lock;       // Mutex lock to protect shared variables
+pthread_cond_t cond;        // Condition variable for signaling between threads
+int turn = 1;               // 1 for T1, 2 for T2 
 
+// Function to read integers from a file and store them in the array A
 void readArrayFromFile(const char* filename) {
-    FILE* file = fopen(filename, "r");
-    if (!file) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
+    FILE* file = fopen(filename, "r");  // Open the file for reading
+    if (!file) {                        // Check if the file was opened successfully
+        perror("Error opening file");   // Print error message if file opening fails
+        exit(EXIT_FAILURE);             // Exit the program if file opening fails
     }
 
-    while (fscanf(file, "%d", &A[size]) == 1) {
-        size++;
+    while (fscanf(file, "%d", &A[size]) == 1) { // Read integers from the file until EOF
+        size++;                                 // Increment the size of the array for each integer read
     }
 
-    fclose(file);
+    fclose(file); // Close the file after reading
 }
 
+// Function to print the array A
 void printArray() {
-    for (int i = 0; i < size; i++) {
-        printf("%d ", A[i]);
+    for (int i = 0; i < size; i++) {    // Loop through each element in the array A
+        printf("%d ", A[i]);            // Print the current element
     }
-    printf("\n");
+    printf("\n");                       // Newline after printing the array
 }
 
+// Function to sort even-indexed pairs (i and i+1 where i is even) in array A
 int sortEvenPairs() {
-    int swaps = 0;
-    for (int i = 0; i < size - 1; i += 2) {
-        if (A[i] > A[i + 1]) {
-            int temp = A[i];
-            A[i] = A[i + 1];
-            A[i + 1] = temp;
-            swaps++;
+    int swap = 0;                           // Initialize swap count to 0
+    for (int i = 0; i < size - 1; i += 2) { // Loop through even indices
+        if (A[i] > A[i + 1]) {              // Check if the current element is greater than the next element
+            int temp = A[i];                // Store the current element in a temporary variable
+            A[i] = A[i + 1];                // Swap the current element with the next element
+            A[i + 1] = temp;                // Assign the temporary variable to the next element
+            swap++;                         // Increment the swap count
         }
     }
-    return swaps;
+    return swap;                            // Return the total number of swaps made in this iteration
 }
 
+// Function to sort odd-indexed pairs (i and i+1 where i is odd) in array A
 int sortOddPairs() {
-    int swaps = 0;
-    for (int i = 1; i < size - 1; i += 2) {
-        if (A[i] > A[i + 1]) {
-            int temp = A[i];
-            A[i] = A[i + 1];
-            A[i + 1] = temp;
-            swaps++;
+    int swap = 0;                           // Initialize swap count to 0
+    for (int i = 1; i < size - 1; i += 2) { // Loop through odd indices
+        if (A[i] > A[i + 1]) {              // Check if the current element is greater than the next element
+            int temp = A[i];                // Store the current element in a temporary variable
+            A[i] = A[i + 1];                // Swap the current element with the next element
+            A[i + 1] = temp;                // Assign the temporary variable to the next element
+            swap++;                         // Increment the swap count
         }
     }
-    return swaps;
+    return swap;                            // Return the total number of swaps made in this iteration
 }
 
+// Thread 1 function: sorts even-indexed pairs in the array A
 void* thread1Func(void* arg) {
-    while (1) {
-        pthread_mutex_lock(&lock);
-        while (turn != 1 && currentIteration < 5) {
-            pthread_cond_wait(&cond, &lock);
+    while (1) {                                         // Infinite loop to keep the thread running until a break condition is met
+        pthread_mutex_lock(&lock);                      // Lock the mutex to protect shared variables
+        while (turn != 1 && currentIteration < 5) {     // Wait if it's not T1's turn and iterations not finished
+            pthread_cond_wait(&cond, &lock);            // Wait for signal and release mutex during waiting
         }
-        if (currentIteration >= 5) {
-            pthread_mutex_unlock(&lock);
+        if (currentIteration >= 5) {                    // Check if the maximum number of iterations is reached
+            pthread_mutex_unlock(&lock);                // Unlock the mutex before breaking
             break;
         }
 
         printf("Iteration %d\n", currentIteration + 1);
         printf("T1: A = ");
         printArray();
-        int swaps = sortEvenPairs();
+        int swap = sortEvenPairs();      // Sort even-indexed pairs in the array A
         printf("Sorted: A = ");
         printArray();
-        printf("Swaps: %d\n", swaps);
-        totalSwaps += swaps;
+        printf("Swaps: %d\n", swap);
+        totalSwaps += swap;              // Update the total number of swaps made
         printf("T1 completed.\n");
 
-        turn = 2;
-        pthread_cond_signal(&cond);
-        pthread_mutex_unlock(&lock);
+        turn = 2;                        // Set turn to 2 for T2 to run next
+        pthread_cond_signal(&cond);      // Signal T2 to wake up and run
+        pthread_mutex_unlock(&lock);     // Unlock the mutex to allow other threads to proceed
     }
-    return NULL;
+    return NULL;                         // Return NULL to indicate thread completion
 }
 
+// Thread 2 function: sorts odd-indexed pairs in the array A
 void* thread2Func(void* arg) {
-    while (1) {
-        pthread_mutex_lock(&lock);
-        while (turn != 2 && currentIteration < 5) {
-            pthread_cond_wait(&cond, &lock);
+    while (1) {                                         // Infinite loop to keep the thread running until a break condition is met
+        pthread_mutex_lock(&lock);                      // Lock the mutex to protect shared variables
+        while (turn != 2 && currentIteration < 5) {     // Wait if it's not T2's turn and iterations not finished
+            pthread_cond_wait(&cond, &lock);            // Wait for signal and release mutex during waiting
         }
-        if (currentIteration >= 5) {
-            pthread_mutex_unlock(&lock);
+        if (currentIteration >= 5) {                    // Check if the maximum number of iterations is reached
+            pthread_mutex_unlock(&lock);                // Unlock the mutex before breaking
             break;
         }
 
         printf("T2: A = ");
         printArray();
-        int swaps = sortOddPairs();
+        int swap = sortOddPairs();      // Sort odd-indexed pairs in the array A
         printf("Sorted: A = ");
         printArray();
-        printf("Swaps: %d\n", swaps);
-        totalSwaps += swaps;
+        printf("Swaps: %d\n", swap);
+        totalSwaps += swap;             // Update the total number of swaps made
         printf("T2 completed.\n\n");
 
-        currentIteration++;
-        turn = 1;
-        pthread_cond_signal(&cond);
-        pthread_mutex_unlock(&lock);
+        currentIteration++;             // Increment the current iteration count
+        turn = 1;                       // Set turn to 1 for T1 to run next
+        pthread_cond_signal(&cond);     // Signal T1 to wake up and run
+        pthread_mutex_unlock(&lock);    // Unlock the mutex to allow other threads to proceed
     }
-    return NULL;
+    return NULL;                        // Return NULL to indicate thread completion
 }
 
+// Main function: entry point of the program
 int main() {
-    readArrayFromFile("ToSort.txt");
+    readArrayFromFile("ToSort.txt");                    // Read the array from the file "ToSort.txt"
 
     printf("Initial Array:\n");
-    printArray();
+    printArray();                                       // Print the initial array before sorting
     printf("\n");
 
-    pthread_t t1, t2;
-    pthread_mutex_init(&lock, NULL);
-    pthread_cond_init(&cond, NULL);
+    pthread_t t1, t2;                                   // Thread identifiers for T1 and T2
+    pthread_mutex_init(&lock, NULL);                    // Initialize the mutex lock
+    pthread_cond_init(&cond, NULL);                     // Initialize the condition variable
 
-    pthread_create(&t1, NULL, thread1Func, NULL);
-    pthread_create(&t2, NULL, thread2Func, NULL);
-
-    pthread_join(t1, NULL);
-    pthread_join(t2, NULL);
+    pthread_create(&t1, NULL, thread1Func, NULL);       // Create thread T1
+    pthread_create(&t2, NULL, thread2Func, NULL);       // Create thread T2
+    pthread_join(t1, NULL);                             // Wait for thread T1 to finish
+    pthread_join(t2, NULL);                             // Wait for thread T2 to finish
 
     printf("Final Sorted Array:\n");
-    printArray();
-    printf("Total Swaps: %d\n", totalSwaps);
+    printf("A = ");
+    printArray();                                       // Print the final sorted array after all iterations
+    printf("Total swaps = %d\n", totalSwaps);
 
-    pthread_mutex_destroy(&lock);
-    pthread_cond_destroy(&cond);
+    pthread_mutex_destroy(&lock);                       // Destroy the mutex lock
+    pthread_cond_destroy(&cond);                        // Destroy the condition variable
 
-    return 0;
+    return 0;                                           // Return 0 to indicate successful completion of the program
 }
