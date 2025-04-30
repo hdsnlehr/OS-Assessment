@@ -10,10 +10,14 @@
 int A[MAX_SIZE];            //Array to hold the numbers read from the file
 int size = 0;               //Current size of the array A
 int totalSwaps = 0;         //Total number of swaps made during sorting
+int t1Swaps = 0;            //Number of swaps made by thread T1
+int t2Swaps = 0;            //Number of swaps made by thread T2
 int currentIteration = 0;   //Tracks the current iteration of sorting
 pthread_mutex_t lock;       // Mutex lock to protect shared variables
 pthread_cond_t cond;        // Condition variable for signaling between threads
 int turn = 1;               // 1 for T1, 2 for T2 
+
+pthread_t t1, t2;           // Thread identifiers for T1 and T2
 
 // Function to read integers from a file and store them in the array A
 void readArrayFromFile(const char* filename) {
@@ -68,6 +72,7 @@ int sortOddPairs() {
 
 // Thread 1 function: sorts even-indexed pairs in the array A
 void* thread1Func(void* arg) {
+    t1 = pthread_self();                                // Get the thread ID of T1
     while (1) {                                         // Infinite loop to keep the thread running until a break condition is met
         pthread_mutex_lock(&lock);                      // Lock the mutex to protect shared variables
         while (turn != 1 && currentIteration < 5) {     // Wait if it's not T1's turn and iterations not finished
@@ -85,10 +90,9 @@ void* thread1Func(void* arg) {
         printf("Sorted: A = ");
         printArray();
         printf("Swaps: %d\n", swap);
+        t1Swaps += swap;                 // Update the number of swaps made by T1
         totalSwaps += swap;              // Update the total number of swaps made
-        printf("Thread ID %p completed.\n", (void*)pthread_self()); // Print thread ID
-
-
+        printf("T1 completed.\n");
 
         turn = 2;                        // Set turn to 2 for T2 to run next
         pthread_cond_signal(&cond);      // Signal T2 to wake up and run
@@ -99,6 +103,7 @@ void* thread1Func(void* arg) {
 
 // Thread 2 function: sorts odd-indexed pairs in the array A
 void* thread2Func(void* arg) {
+    t2 = pthread_self();                             // Get the thread ID of T2
     while (1) {                                         // Infinite loop to keep the thread running until a break condition is met
         pthread_mutex_lock(&lock);                      // Lock the mutex to protect shared variables
         while (turn != 2 && currentIteration < 5) {     // Wait if it's not T2's turn and iterations not finished
@@ -115,9 +120,9 @@ void* thread2Func(void* arg) {
         printf("Sorted: A = ");
         printArray();
         printf("Swaps: %d\n", swap);
+        t2Swaps += swap;                 // Update the number of swaps made by T2
         totalSwaps += swap;             // Update the total number of swaps made
-        printf("Thread ID %p completed.\n\n", (void*)pthread_self()); // Print thread ID
-
+        printf("T2 completed.\n\n");
 
         currentIteration++;             // Increment the current iteration count
         turn = 1;                       // Set turn to 1 for T1 to run next
@@ -135,7 +140,6 @@ int main() {
     printArray();                                       // Print the initial array before sorting
     printf("\n");
 
-    pthread_t t1, t2;                                   // Thread identifiers for T1 and T2
     pthread_mutex_init(&lock, NULL);                    // Initialize the mutex lock
     pthread_cond_init(&cond, NULL);                     // Initialize the condition variable
 
@@ -143,6 +147,10 @@ int main() {
     pthread_create(&t2, NULL, thread2Func, NULL);       // Create thread T2
     pthread_join(t1, NULL);                             // Wait for thread T1 to finish
     pthread_join(t2, NULL);                             // Wait for thread T2 to finish
+    
+    printf("Thread 1 ID: %p, total number of swaps = %d\n", t1, t1Swaps);
+    printf("Thread 2 ID: %p, total number of swaps = %d\n", t2, t2Swaps);
+
 
     printf("Final Sorted Array:\n");
     printf("A = ");
