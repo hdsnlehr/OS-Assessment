@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>      //For input and output functions (printf, scanf, etc.)
 #include <stdlib.h>     //For memory allocation functions (malloc, free, etc.)
 #include <pthread.h>    //For using POSIX threads (pthread_create, pthread_join, etc.)
@@ -84,7 +86,9 @@ void* thread1Func(void* arg) {
         printArray();
         printf("Swaps: %d\n", swap);
         totalSwaps += swap;              // Update the total number of swaps made
-        printf("T1 completed.\n");
+        printf("Thread ID %p completed.\n", (void*)pthread_self()); // Print thread ID
+
+
 
         turn = 2;                        // Set turn to 2 for T2 to run next
         pthread_cond_signal(&cond);      // Signal T2 to wake up and run
@@ -112,7 +116,8 @@ void* thread2Func(void* arg) {
         printArray();
         printf("Swaps: %d\n", swap);
         totalSwaps += swap;             // Update the total number of swaps made
-        printf("T2 completed.\n\n");
+        printf("Thread ID %p completed.\n\n", (void*)pthread_self()); // Print thread ID
+
 
         currentIteration++;             // Increment the current iteration count
         turn = 1;                       // Set turn to 1 for T1 to run next
